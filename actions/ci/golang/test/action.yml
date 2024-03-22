@@ -1,0 +1,13 @@
+name: 'Run Tests'
+description: 'Execute Init Tests'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: 'Run Tests'
+      run: |
+        echo "Running tests..."
+      shell: bash
+  
