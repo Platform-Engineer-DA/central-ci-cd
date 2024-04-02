@@ -1,0 +1,16 @@
+name: 'Run Setup'
+description: 'Execute Setup for Golang'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: 'Run Setup for Golang'
+      run: |
+        mkdir -p $GO_PATH/src/$github_repo
+        ln -svf $GITHUB_WORKSPACE/* $GO_PATH/src/$github_repo
+        cd $GO_PATH/src/$github_repo
+        [ ! -f glide.yaml ] || glide install -v
+      shell: bash
+  
