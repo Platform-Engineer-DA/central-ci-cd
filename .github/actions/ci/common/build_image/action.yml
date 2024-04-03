@@ -14,8 +14,8 @@ runs:
     - name: 'Login to Docker Hub'
       uses: docker/login-action@v2
       with:
-        username: ${{ env.CI_REGISTRY_USER }}
-        password: ${{ env.CI_REGISTRY_TOKEN }}
+        username: ${{ env.CI_USER_REGISTRY }}
+        password: ${{ env.CI_TOKEN_REGISTRY }}
     
     - name: 'Build Image'
       uses: docker/build-push-action@v2
@@ -23,4 +23,4 @@ runs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ env.CI_REGISTRY }}/${{ env.CI_REGISTRY_USER }}/$GITHUB_PROJECT:$GITHUB_SHA
+        tags: ${{ env.CI_REGISTRY }}/${{ env.CI_USER_REGISTRY }}/$GITHUB_PROJECT:$GITHUB_SHA
