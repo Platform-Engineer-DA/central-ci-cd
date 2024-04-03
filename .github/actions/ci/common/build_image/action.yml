@@ -31,4 +31,4 @@ runs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: index.docker.io/${{ inputs.DOCKER_USERNAME }}/$GITHUB_PROJECT:$GITHUB_SHA
+        tags: index.docker.io/${{ inputs.DOCKER_USERNAME }}/$GITHUB_REPOSITORY:$GITHUB_SHA
