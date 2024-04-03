@@ -23,4 +23,4 @@ runs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ env.CI_REGISTRY }}/${{ env.CI_USER_REGISTRY }}/$GITHUB_PROJECT:$GITHUB_SHA
+        tags: index.docker.io/${{ secrets.DOCKER_USERNAME }}/$GITHUB_PROJECT:$GITHUB_SHA
