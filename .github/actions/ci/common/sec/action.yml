@@ -30,17 +30,17 @@ runs:
         with:
           username: ${{ inputs.DOCKER_USERNAME }}
           password: ${{ inputs.DOCKER_PASSWORD }}
+        
+      - name: 'Run Trivy Scan'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ inputs.DOCKER_USERNAME }}/${{ inputs.PROJECT_NAME }}:${{ inputs.TAG_VERSION }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
 
-      - name: 'Install trivy'
-        run: |
-          sudo apt-get update
-          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy -y
           
-      - name: 'Scan Image'
-        run: |
-          docker pull ${{ inputs.DOCKER_USERNAME }}/${{ inputs.PROJECT_NAME }}:${{ inputs.TAG_VERSION }}
-          trivy image --severity HIGH,CRITICAL ${{ inputs.DOCKER_USERNAME }}/${{ inputs.PROJECT_NAME }}:${{ inputs.TAG_VERSION }} --exit-code 1
+
+
