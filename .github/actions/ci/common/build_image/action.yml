@@ -37,4 +37,4 @@ runs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ inputs.DOCKER_PASSWORD }}/${{ inputs.PROJECT_NAME }}:${{ inputs.TAG_VERSION }}
+        tags: ${{ inputs.DOCKER_USERNAME }}/${{ inputs.PROJECT_NAME }}:${{ inputs.TAG_VERSION }}
