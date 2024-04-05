@@ -31,4 +31,4 @@ runs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ env.DOCKER_HUB_USERNAME }}/${{ github.repository.name }}:${{ github.sha.short }}
+        tags: marcoscianci/${{ github.repository.name }}:${{ github.sha.short }}
