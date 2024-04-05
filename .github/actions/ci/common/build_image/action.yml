@@ -8,6 +8,9 @@ inputs:
   DOCKER_PASSWORD:
     description: 'Docker Password'
     required: true
+  PROJECT_NAME:
+    description: 'Project Name'
+    required: true
 
 runs:
   using: 'composite'
@@ -24,11 +27,14 @@ runs:
       with:
         username: ${{ inputs.DOCKER_USERNAME }}
         password: ${{ inputs.DOCKER_PASSWORD }}
+        PROJECT_NAME: ${{ inputs.PROJECT_NAME }}
     
     - name: 'Build Image'
       uses: docker/build-push-action@v2
       with:
+        DOCKER_USERNAME: ${{ inputs.DOCKER_USERNAME }}
+        PROJECT_NAME: ${{ inputs.PROJECT_NAME }}
         context: .
         file: ./Dockerfile
         push: true
-        tags: marcoscianci/gitops:latest
+        tags: ${{ env.DOCKER_USERNAME }}/${{ env.PROJECT_NAME }}:latest
