@@ -1,5 +1,6 @@
 name: Deploy Argo CD objects to OKE
 description: Deploy Argo CD objects to OKE cluster using OCI CLI and kubectl
+
 inputs:
   OCI_TENANCY_OCID:
     description: 'OCI Tenancy OCID'
@@ -11,71 +12,87 @@ inputs:
     description: 'OCI Fingerprint'
     required: true
   OCI_REGION:
-    description: 'OCI Region'
+    description: 'OCI Region (e.g. sa-saopaulo-1)'
     required: true
   OCI_PRIVATE_KEY_B64:
-    description: 'OCI Private Key (Base64 Encoded)'
+    description: 'OCI Private Key (Base64 Encoded, single line)'
     required: true
   OKE_CLUSTER_OCID:
     description: 'OKE Cluster OCID'
     required: true
+  ARGOCD_PATH:
+    description: 'Path to Argo CD manifests'
+    required: false
+    default: 'k8s/argocd-project'
 
-  runs:
-    using: 'composite'
-    env:
-      ARGOCD_PATH: 'k8s/argocd-project'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OCI CLI (venv)
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y python3-venv
+        python3 -m venv /opt/oci-venv
+        /opt/oci-venv/bin/pip install --no-cache-dir --upgrade pip
+        /opt/oci-venv/bin/pip install --no-cache-dir oci-cli
+        echo "/opt/oci-venv/bin" >> "$GITHUB_PATH"
 
-    steps:
+    - name: Configure OCI CLI
+      shell: bash
+      env:
+        OCI_TENANCY_OCID:   ${{ inputs.OCI_TENANCY_OCID }}
+        OCI_USER_OCID:      ${{ inputs.OCI_USER_OCID }}
+        OCI_FINGERPRINT:    ${{ inputs.OCI_FINGERPRINT }}
+        OCI_REGION:         ${{ inputs.OCI_REGION }}
+        OCI_PRIVATE_KEY_B64: ${{ inputs.OCI_PRIVATE_KEY_B64 }}
+      run: |
+        mkdir -p ~/.oci
+        # escreve a privada a partir do base64 (sem quebras de linha)
+        printf '%s' "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/oci_api_key.pem
+        # cria o config
+        cat > ~/.oci/config <<EOF
+        [DEFAULT]
+        user=${OCI_USER_OCID}
+        fingerprint=${OCI_FINGERPRINT}
+        tenancy=${OCI_TENANCY_OCID}
+        region=${OCI_REGION}
+        key_file=/home/runner/.oci/oci_api_key.pem
+        EOF
+        chmod 600 ~/.oci/config
+        oci --version
 
-      - name: Install OCI CLI
-        shell: bash
-        run: |
-          sudo apt-get update -y 
-          sudo apt install -y python3-venv
-          python3 -m venv /opt/oci-venv
-          /opt/oci-venv/bin/pip install --no-cache-dir --upgrade pip
-          /opt/oci-venv/bin/pip install --no-cache-dir oci-cli
-          echo "/opt/oci-venv/bin" >> $GITHUB_PATH
-      
-      - name: Configure OCI CLI
-        shell: bash
-        run: |
-          mkdir -p ~/.oci
-          echo "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
-          cat > ~/.oci/config <<EOF
-          [DEFAULT]
-          user=${OCI_USER_OCID}
-          fingerprint=${{ inputs.OCI_FINGERPRINT }}
-          tenancy=${{ inputs.OCI_TENANCY_OCID }}
-          region=${{ inputs.OCI_REGION }}
-          key_file=/home/runner/.oci/oci_api_key.pem
-          EOF
-          chmod 600 ~/.oci/config
-          oci --version
+    - name: Build kubeconfig for OKE
+      shell: bash
+      env:
+        OKE_CLUSTER_OCID: ${{ inputs.OKE_CLUSTER_OCID }}
+        OCI_REGION:       ${{ inputs.OCI_REGION }}
+      run: |
+        mkdir -p ~/.kube
+        oci ce cluster create-kubeconfig \
+          --cluster-id "$OKE_CLUSTER_OCID" \
+          --region "$OCI_REGION" \
+          --file ~/.kube/config \
+          --token-version 2.0.0 \
+          --kube-endpoint PUBLIC_ENDPOINT
+        kubectl cluster-info
 
-      - name: Build kubeconfig for OKE
-        shell: bash
-        run: |
-            mkdir -p ~/.kube
-            oci ce cluster create-kubeconfig \
-              --cluster-id "${{ inputs.OKE_CLUSTER_OCID }}" \
-              --region "${{  inputs.OCI_REGION }}" \
-              --file ~/.kube/config \
-              --token-version 2.0.0 \
-              --kube-endpoint PUBLIC_ENDPOINT
-            kubectl cluster-info
+    - name: Apply App Project
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+      run: kubectl apply -f "$ARGOCD_PATH/project.yaml"
 
-      # --- Apply AppProject / Repository / Applications ---
-      - name: Apply App Project
-        shell: bash
-        run: kubectl apply -f ${ARGOCD_PATH}/project.yaml
-      
-      - name: Apply Repository
-        shell: bash
-        run: kubectl apply -f ${ARGOCD_PATH}/repository.yaml
+    - name: Apply Repository
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+      run: kubectl apply -f "$ARGOCD_PATH/repository.yaml"
 
-      - name: Apply App Applications
-        shell: bash
-        run: kubectl apply -f ${ARGOCD_PATH}/application.yaml
+    - name: Apply Applications (App of Apps ou individual)
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+      run: kubectl apply -f "$ARGOCD_PATH/application.yaml"
       
