@@ -17,6 +17,9 @@ inputs:
   OCI_PRIVATE_KEY_B64:
     description: 'OCI Private Key (Base64 Encoded, single line)'
     required: true
+  OCI_PRIVATE_KEY:
+    description: 'OCI Private Key (single line)'
+    required: true
   OKE_CLUSTER_OCID:
     description: 'OKE Cluster OCID'
     required: true
@@ -45,12 +48,11 @@ runs:
         OCI_USER_OCID:      ${{ inputs.OCI_USER_OCID }}
         OCI_FINGERPRINT:    ${{ inputs.OCI_FINGERPRINT }}
         OCI_REGION:         ${{ inputs.OCI_REGION }}
-        OCI_PRIVATE_KEY_B64: ${{ inputs.OCI_PRIVATE_KEY_B64 }}
+        OCI_PRIVATE_KEY: ${{ inputs.OCI_PRIVATE_KEY }}
       run: |
         mkdir -p ~/.oci
         # escreve a privada a partir do base64 (sem quebras de linha)
-        printf '%s' "$OCI_PRIVATE_KEY_B64"
-        printf '%s' "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
+        printf '%s\n' "$KEY_RAW" | sed -e 's/\r$//' > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
         # cria o config
         cat > ~/.oci/config <<EOF
