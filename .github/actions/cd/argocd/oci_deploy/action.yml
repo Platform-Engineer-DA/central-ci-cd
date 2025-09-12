@@ -52,7 +52,7 @@ runs:
       run: |
         mkdir -p ~/.oci
         # escreve a privada a partir do base64 (sem quebras de linha)
-        printf '%s\n' "$KEY_RAW" | sed -e 's/\r$//' > ~/.oci/oci_api_key.pem
+        printf '%s\n' "$OCI_PRIVATE_KEY" | sed -e 's/\r$//' > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
         # cria o config
         cat > ~/.oci/config <<EOF
