@@ -49,6 +49,8 @@ runs:
       run: |
         mkdir -p ~/.oci
         # escreve a privada a partir do base64 (sem quebras de linha)
+        if [[ -n $OCI_PRIVATE_KEY_B64]]
+        printf '%s' "$OCI_PRIVATE_KEY_B64"
         printf '%s' "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
         # cria o config
