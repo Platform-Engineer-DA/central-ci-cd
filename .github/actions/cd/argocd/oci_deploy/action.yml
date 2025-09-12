@@ -61,7 +61,7 @@ runs:
         fingerprint=${OCI_FINGERPRINT}
         tenancy=${OCI_TENANCY_OCID}
         region=${OCI_REGION}
-        key_file=/home/runner/.oci/oci_api_key.pem
+        key_file=~/.oci/oci_api_key.pem
         EOF
         chmod 600 ~/.oci/config
         oci --version
@@ -72,7 +72,6 @@ runs:
         OKE_CLUSTER_OCID: ${{ inputs.OKE_CLUSTER_OCID }}
         OCI_REGION:       ${{ inputs.OCI_REGION }}
       run: |
-        cat ~/.oci/oci_api_key.pem
         mkdir -p ~/.kube
         oci ce cluster create-kubeconfig \
           --cluster-id "$OKE_CLUSTER_OCID" \
