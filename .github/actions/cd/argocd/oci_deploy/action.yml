@@ -1,0 +1,80 @@
+name: Deploy Argo CD objects to OKE
+
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'k8s/argocd-project/**'
+      - '.github/workflows/deploy-argocd-oke.yaml'
+
+env:
+  ARGOCD_NAMESPACE: argocd
+  ARGOCD_PATH: 'k8s/argocd-project'
+
+jobs:
+  deploy:
+    run-ons: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OCI CLI
+        run: |
+          sudo apt-get update -y 
+          sudo apt install -y python3-venv
+          python3 -m venv /opt/oci-venv
+          /opt/oci-venv/bin/pip install --no-cache-dir --upgrade pip
+          /opt/oci-venv/bin/pip install --no-cache-dir oci-cli
+          echo "/opt/oci-venv/bin" >> $GITHUB_PATH
+      
+      - name: Configure OCI CLI
+        env:
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_USER_OCID:    ${{ secrets.OCI_USER_OCID }}
+          OCI_FINGERPRINT:  ${{ secrets.OCI_FINGERPRINT }}
+          OCI_REGION:       ${{ secrets.OCI_REGION }}
+          OCI_PRIVATE_KEY_B64: ${{ secrets.OCI_PRIVATE_KEY_B64 }}
+        run: |
+          mkdir -p ~/.oci
+          echo "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${OCI_USER_OCID}
+          fingerprint=${OCI_FINGERPRINT}
+          tenancy=${OCI_TENANCY_OCID}
+          region=${OCI_REGION}
+          key_file=/home/runner/.oci/oci_api_key.pem
+          EOF
+          chmod 600 ~/.oci/config
+          oci --version
+
+      - name: Build kubeconfig for OKE
+          env:
+            OKE_CLUSTER_OCID: ${{ secrets.OKE_CLUSTER_OCID }}
+            OCI_REGION:       ${{ secrets.OCI_REGION }}
+          run: |
+            mkdir -p ~/.kube
+            oci ce cluster create-kubeconfig \
+              --cluster-id "$OKE_CLUSTER_OCID" \
+              --region "$OCI_REGION" \
+              --file ~/.kube/config \
+              --token-version 2.0.0 \
+              --kube-endpoint PUBLIC_ENDPOINT
+            kubectl cluster-info
+
+      # --- Apply AppProject / Repository / Applications ---
+      - name: Apply App Project
+        run: kubectl apply -f ${ARGOCD_PATH}/project.yaml
+      
+      - name: Apply Repository
+        run: kubectl apply -f ${ARGOCD_PATH}/repository.yaml
+
+      - name: Apply App Applications
+        run: kubectl apply -f ${ARGOCD_PATH}/application.yaml
+      
