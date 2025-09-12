@@ -27,10 +27,8 @@ inputs:
 
     steps:
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Install OCI CLI
+        shell: bash
         run: |
           sudo apt-get update -y 
           sudo apt install -y python3-venv
@@ -40,12 +38,7 @@ inputs:
           echo "/opt/oci-venv/bin" >> $GITHUB_PATH
       
       - name: Configure OCI CLI
-        env:
-          OCI_TENANCY_OCID: ${{ inputs.OCI_TENANCY_OCID }}
-          OCI_USER_OCID:    ${{ inputs.OCI_USER_OCID }}
-          OCI_FINGERPRINT:  ${{ inputs.OCI_FINGERPRINT }}
-          OCI_REGION:       ${{ inputs.OCI_REGION }}
-          OCI_PRIVATE_KEY_B64: ${{ inputs.OCI_PRIVATE_KEY_B64 }}
+        shell: bash
         run: |
           mkdir -p ~/.oci
           echo "$OCI_PRIVATE_KEY_B64" | base64 -d > ~/.oci/oci_api_key.pem
@@ -75,11 +68,14 @@ inputs:
 
       # --- Apply AppProject / Repository / Applications ---
       - name: Apply App Project
+        shell: bash
         run: kubectl apply -f ${ARGOCD_PATH}/project.yaml
       
       - name: Apply Repository
+        shell: bash
         run: kubectl apply -f ${ARGOCD_PATH}/repository.yaml
 
       - name: Apply App Applications
+        shell: bash
         run: kubectl apply -f ${ARGOCD_PATH}/application.yaml
       
