@@ -20,22 +20,10 @@ inputs:
     description: 'OKE Cluster OCID'
     required: true
 
-
-# on:
-#   push:
-#     branches: [ "main" ]
-#     paths:
-#       - 'k8s/argocd-project/**'
-
-# env:
-#   ARGOCD_NAMESPACE: argocd
-#   ARGOCD_PATH: 'k8s/argocd-project'
-
   runs:
     using: 'composite'
     env:
       ARGOCD_PATH: 'k8s/argocd-project'
-      ARGOCD_NAMESPACE: 'argocd'
 
     steps:
 
@@ -65,23 +53,21 @@ inputs:
           cat > ~/.oci/config <<EOF
           [DEFAULT]
           user=${OCI_USER_OCID}
-          fingerprint=${OCI_FINGERPRINT}
-          tenancy=${OCI_TENANCY_OCID}
-          region=${OCI_REGION}
+          fingerprint=${{ inputs.OCI_FINGERPRINT }}
+          tenancy=${{ inputs.OCI_TENANCY_OCID }}
+          region=${{ inputs.OCI_REGION }}
           key_file=/home/runner/.oci/oci_api_key.pem
           EOF
           chmod 600 ~/.oci/config
           oci --version
 
       - name: Build kubeconfig for OKE
-        env:
-          OKE_CLUSTER_OCID: ${{ inputs.OKE_CLUSTER_OCID }}
-          OCI_REGION:       ${{ inputs.OCI_REGION }}
+        shell: bash
         run: |
             mkdir -p ~/.kube
             oci ce cluster create-kubeconfig \
-              --cluster-id "$OKE_CLUSTER_OCID" \
-              --region "$OCI_REGION" \
+              --cluster-id "${{ inputs.OKE_CLUSTER_OCID }}" \
+              --region "${{  inputs.OCI_REGION }}" \
               --file ~/.kube/config \
               --token-version 2.0.0 \
               --kube-endpoint PUBLIC_ENDPOINT
