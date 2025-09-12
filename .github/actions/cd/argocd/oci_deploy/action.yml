@@ -54,10 +54,10 @@ jobs:
           oci --version
 
       - name: Build kubeconfig for OKE
-          env:
-            OKE_CLUSTER_OCID: ${{ secrets.OKE_CLUSTER_OCID }}
-            OCI_REGION:       ${{ secrets.OCI_REGION }}
-          run: |
+        env:
+          OKE_CLUSTER_OCID: ${{ secrets.OKE_CLUSTER_OCID }}
+          OCI_REGION:       ${{ secrets.OCI_REGION }}
+        run: |
             mkdir -p ~/.kube
             oci ce cluster create-kubeconfig \
               --cluster-id "$OKE_CLUSTER_OCID" \
