@@ -85,17 +85,17 @@ runs:
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/project.yaml"
+      run: kubectl apply -f "$ARGOCD_PATH/project.yml"
 
     - name: Apply Repository
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/repository.yaml"
+      run: kubectl apply -f "$ARGOCD_PATH/repository.yml"
 
     - name: Apply Applications (App of Apps ou individual)
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/application.yaml"
+      run: kubectl apply -f "$ARGOCD_PATH/application.yml"
       
