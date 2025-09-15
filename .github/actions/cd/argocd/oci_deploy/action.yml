@@ -22,7 +22,11 @@ inputs:
     required: true
   GIT_PAT:
     description: 'GitHub Personal Access Token (with repo scope)'
-    required: true 
+    required: true
+  ENV:
+    description: 'Environment (e.g. dev, hom, prod)'
+    required: false
+    default: 'dev' 
   ARGOCD_PATH:
     description: 'Path to Argo CD manifests'
     required: false
@@ -98,5 +102,6 @@ runs:
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/application.yml"
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < "$ARGOCD_PATH/application.yml" | kubectl apply -f -
       
