@@ -14,15 +14,15 @@ inputs:
   OCI_REGION:
     description: 'OCI Region (e.g. sa-saopaulo-1)'
     required: true
-  OCI_PRIVATE_KEY_B64:
-    description: 'OCI Private Key (Base64 Encoded, single line)'
-    required: true
   OCI_PRIVATE_KEY:
     description: 'OCI Private Key (single line)'
     required: true
   OKE_CLUSTER_OCID:
     description: 'OKE Cluster OCID'
     required: true
+  GIT_PAT:
+    description: 'GitHub Personal Access Token (with repo scope)'
+    required: true 
   ARGOCD_PATH:
     description: 'Path to Argo CD manifests'
     required: false
@@ -91,7 +91,8 @@ runs:
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/repository.yml"
+        GIT_PAT: ${{ inputs.GIT_PAT }}
+      run: envsubst < "$ARGOCD_PATH/repository.yml" | kubectl apply -f -
 
     - name: Apply Applications (App of Apps ou individual)
       shell: bash
