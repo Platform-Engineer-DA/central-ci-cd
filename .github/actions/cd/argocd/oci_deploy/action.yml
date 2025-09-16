@@ -130,7 +130,7 @@ runs:
         ENV: ${{ inputs.ENV }}                 # ex.: dev
       run: |
         set -euo pipefail
-        OVERLAY_DIR="k8s/overlays/${ENV}"   # ajuste o caminho do seu repo
+        OVERLAY_DIR="/k8s/overlays/${ENV}"   # ajuste o caminho do seu repo
         test -d "$OVERLAY_DIR" || { echo "Overlay não encontrado: $OVERLAY_DIR"; exit 1; }
 
         # seta a imagem no overlay (edita kustomization.yaml)
