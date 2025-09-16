@@ -104,4 +104,16 @@ runs:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
         ENV: ${{ inputs.ENV }}
       run: envsubst < "$ARGOCD_PATH/application.yml" | kubectl apply -f -
+    
+    - name: Resolve IMAGE TAG
+      shell: bash
+      run: |
+        # Se CD foi disparado por workflow_run do CI, use o run_id do CI
+        if [ -n "${{ github.event.workflow_run.id || '' }}" ]; then
+          TAG_VERSION="dev_${{ github.event.workflow_run.id }}"
+        else
+          TAG_VERSION="dev_${{ github.run_id }}"
+        fi
+        echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_ENV
+        echo "IMAGE=marcoscianci/gitops:$TAG_VERSION" >> $GITHUB_ENV
       
