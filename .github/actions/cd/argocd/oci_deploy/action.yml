@@ -123,4 +123,21 @@ runs:
         curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/kustomize_v5.4.2_linux_amd64.tar.gz" \
         | tar xz -C /usr/local/bin
         kustomize version
-      
+
+    - name: Kustomize set image & apply
+      shell: bash
+      env:
+        ENV: ${{ inputs.ENV }}                 # ex.: dev
+      run: |
+        set -euo pipefail
+        OVERLAY_DIR="k8s/overlays/${ENV}"   # ajuste o caminho do seu repo
+        test -d "$OVERLAY_DIR" || { echo "Overlay não encontrado: $OVERLAY_DIR"; exit 1; }
+
+        # seta a imagem no overlay (edita kustomization.yaml)
+        pushd "$OVERLAY_DIR" >/dev/null
+          kustomize edit set image marcoscianci/gitops="${IMAGE}"
+          echo "Kustomize images atualizadas para ${IMAGE}"
+        popd >/dev/null
+
+        # build + apply
+        kustomize build "$OVERLAY_DIR" | kubectl apply -f -  
