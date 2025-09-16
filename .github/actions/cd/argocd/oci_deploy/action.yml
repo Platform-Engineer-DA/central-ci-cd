@@ -31,6 +31,10 @@ inputs:
     description: 'Path to Argo CD manifests'
     required: false
     default: 'k8s/argocd-project'
+  OVERLAY_DIR:
+    description: 'Path to Kustomize overlay directory'
+    required: false
+    default: 'k8s/overlays/'
 
 runs:
   using: 'composite'
@@ -127,17 +131,17 @@ runs:
     - name: Kustomize set image & apply
       shell: bash
       env:
-        ENV: ${{ inputs.ENV }}                 # ex.: dev
+        ENV: ${{ inputs.ENV }}
+        OVERLAY_DIR: ${{ inputs.OVERLAY_DIR }}                  
       run: |
         set -euo pipefail
-        OVERLAY_DIR="./k8s/overlays/${ENV}"   # ajuste o caminho do seu repo
-        test -d "$OVERLAY_DIR" || { echo "Overlay não encontrado: $OVERLAY_DIR"; exit 1; }
+        test -d "$OVERLAY_DIR/${ENV}" || { echo "Overlay não encontrado: $OVERLAY_DIR/${ENV}"; exit 1; }
 
         # seta a imagem no overlay (edita kustomization.yaml)
-        pushd "$OVERLAY_DIR" >/dev/null
+        pushd "$OVERLAY_DIR/${ENV}" >/dev/null
           kustomize edit set image marcoscianci/gitops="${IMAGE}"
           echo "Kustomize images atualizadas para ${IMAGE}"
         popd >/dev/null
 
         # build + apply
-        kustomize build "$OVERLAY_DIR" | kubectl apply -f -  
+        kustomize build "$OVERLAY_DIR/${ENV}" | kubectl apply -f -  
