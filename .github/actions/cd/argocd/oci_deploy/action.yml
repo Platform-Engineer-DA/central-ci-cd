@@ -158,4 +158,5 @@ runs:
         REMOTE_URL="$(git remote get-url origin)"
         AUTH_URL="${REMOTE_URL/https:\/\/github.com/https:\/\/x-access-token:${GIT_PAT}@github.com}"
         git remote set-url origin "${AUTH_URL}"
+        git push 
   
