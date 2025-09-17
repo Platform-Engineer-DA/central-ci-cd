@@ -132,7 +132,7 @@ runs:
       shell: bash
       env:
         ENV: ${{ inputs.ENV }}
-        OVERLAY_DIR: ${{ inputs.OVERLAY_DIR }}                  
+        OVERLAY_DIR: ${{ inputs.OVERLAY_DIR }}
       run: |
         set -euo pipefail
         test -d "$OVERLAY_DIR/${ENV}" || { echo "Overlay não encontrado: $OVERLAY_DIR/${ENV}"; exit 1; }
@@ -144,4 +144,15 @@ runs:
         popd >/dev/null
 
         # build + apply
-        kustomize build "$OVERLAY_DIR/${ENV}" | kubectl apply -f -
+        kustomize build "$OVERLAY_DIR/${ENV}"  | grep -E 'image: .*/gitops:' | head -n 5 || true
+
+        git config user.name "mcianci2024"
+        git config user.email "codeiati7@gmail.com"
+        git add "${OVERLAY_DIR}/${ENV}/kustomization.yaml"
+        if git diff --cached --quiet;then
+          echo "Nada para commitar(imagem ja estava em ${IMAGE})."
+        else
+          git commit -m "chore(cd): bump image to ${IMAGE}"
+          git push
+        fi 
+
