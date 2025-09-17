@@ -152,11 +152,9 @@ runs:
         git add "${OVERLAY_DIR}/${ENV}/kustomization.yaml"
         if git diff --cached --quiet;then
           echo "Nada para commitar(imagem ja estava em ${IMAGE})."
-        else
-          git commit -m "chore(cd): bump image to ${IMAGE}"
-          git push
-        fi 
-
+          exit 0
+        fi
+        git commit -m "chore(cd): bump image to ${IMAGE}"
         REMOTE_URL="$(git remote get-url origin)"
         AUTH_URL="${REMOTE_URL/https:\/\/github.com/https:\/\/x-access-token:${GIT_PAT}@github.com}"
         git remote set-url origin "${AUTH_URL}"
