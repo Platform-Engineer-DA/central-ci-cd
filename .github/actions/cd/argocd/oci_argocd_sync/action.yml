@@ -29,11 +29,9 @@ inputs:
   ARGOCD_PATH:
     description: 'Path to Argo CD manifests'
     required: false
-    default: 'k8s/argocd-project'
   OVERLAY_DIR:
     description: 'Path to Kustomize overlay directory'
     required: false
-    default: 'k8s/overlays/'
 
 runs:
   using: 'composite'
