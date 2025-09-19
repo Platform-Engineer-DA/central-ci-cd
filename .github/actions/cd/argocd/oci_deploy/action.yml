@@ -88,26 +88,6 @@ runs:
           --token-version 2.0.0 \
           --kube-endpoint PUBLIC_ENDPOINT
         kubectl cluster-info
-
-    - name: Apply App Project
-      shell: bash
-      env:
-        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/project.yml"
-
-    - name: Apply Repository
-      shell: bash
-      env:
-        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-        GIT_PAT: ${{ inputs.GIT_PAT }}
-      run: envsubst < "$ARGOCD_PATH/repository.yml" | kubectl apply -f -
-
-    - name: Apply Applications (App of Apps ou individual)
-      shell: bash
-      env:
-        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-        ENV: ${{ inputs.ENV }}
-      run: envsubst < "$ARGOCD_PATH/application.yml" | kubectl apply -f -
     
     - name: Resolve IMAGE TAG
       shell: bash
