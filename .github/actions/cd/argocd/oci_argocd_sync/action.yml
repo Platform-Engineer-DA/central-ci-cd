@@ -1,0 +1,161 @@
+name: Deploy Argo CD objects to OKE
+description: Deploy Argo CD objects to OKE cluster using OCI CLI and kubectl
+
+inputs:
+  OCI_TENANCY_OCID:
+    description: 'OCI Tenancy OCID'
+    required: true
+  OCI_USER_OCID:
+    description: 'OCI User OCID'
+    required: true
+  OCI_FINGERPRINT:
+    description: 'OCI Fingerprint'
+    required: true
+  OCI_REGION:
+    description: 'OCI Region (e.g. sa-saopaulo-1)'
+    required: true
+  OCI_PRIVATE_KEY:
+    description: 'OCI Private Key (single line)'
+    required: true
+  OKE_CLUSTER_OCID:
+    description: 'OKE Cluster OCID'
+    required: true
+  GIT_PAT:
+    description: 'GitHub Personal Access Token (with repo scope)'
+    required: true
+  ENV:
+    description: 'Environment (e.g. dev, hom, prod)'
+    required: false
+  ARGOCD_PATH:
+    description: 'Path to Argo CD manifests'
+    required: false
+    default: 'k8s/argocd-project'
+  OVERLAY_DIR:
+    description: 'Path to Kustomize overlay directory'
+    required: false
+    default: 'k8s/overlays/'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OCI CLI (venv)
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y python3-venv
+        python3 -m venv /opt/oci-venv
+        /opt/oci-venv/bin/pip install --no-cache-dir --upgrade pip
+        /opt/oci-venv/bin/pip install --no-cache-dir oci-cli
+        echo "/opt/oci-venv/bin" >> "$GITHUB_PATH"
+
+    - name: Configure OCI CLI
+      shell: bash
+      env:
+        OCI_TENANCY_OCID:   ${{ inputs.OCI_TENANCY_OCID }}
+        OCI_USER_OCID:      ${{ inputs.OCI_USER_OCID }}
+        OCI_FINGERPRINT:    ${{ inputs.OCI_FINGERPRINT }}
+        OCI_REGION:         ${{ inputs.OCI_REGION }}
+        OCI_PRIVATE_KEY: ${{ inputs.OCI_PRIVATE_KEY }}
+      run: |
+        mkdir -p ~/.oci
+        # escreve a privada a partir do base64 (sem quebras de linha)
+        printf '%s\n' "$OCI_PRIVATE_KEY" | sed -e 's/\r$//' > ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/oci_api_key.pem
+        # cria o config
+        cat > ~/.oci/config <<EOF
+        [DEFAULT]
+        user=${OCI_USER_OCID}
+        fingerprint=${OCI_FINGERPRINT}
+        tenancy=${OCI_TENANCY_OCID}
+        region=${OCI_REGION}
+        key_file=~/.oci/oci_api_key.pem
+        EOF
+        chmod 600 ~/.oci/config
+        oci --version
+
+    - name: Build kubeconfig for OKE
+      shell: bash
+      env:
+        OKE_CLUSTER_OCID: ${{ inputs.OKE_CLUSTER_OCID }}
+        OCI_REGION:       ${{ inputs.OCI_REGION }}
+      run: |
+        mkdir -p ~/.kube
+        oci ce cluster create-kubeconfig \
+          --cluster-id "$OKE_CLUSTER_OCID" \
+          --region "$OCI_REGION" \
+          --file ~/.kube/config \
+          --token-version 2.0.0 \
+          --kube-endpoint PUBLIC_ENDPOINT
+        kubectl cluster-info
+
+    - name: Apply App Project
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+      run: kubectl apply -f "$ARGOCD_PATH/project.yml"
+
+    - name: Apply Repository
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+        GIT_PAT: ${{ inputs.GIT_PAT }}
+      run: envsubst < "$ARGOCD_PATH/repository.yml" | kubectl apply -f -
+
+    - name: Apply Applications (App of Apps ou individual)
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < "$ARGOCD_PATH/application.yml" | kubectl apply -f -
+    
+    - name: Resolve IMAGE TAG
+      shell: bash
+      run: |
+        # Se CD foi disparado por workflow_run do CI, use o run_id do CI
+        if [ -n "${{ github.event.workflow_run.id || '' }}" ]; then
+          TAG_VERSION="dev_${{ github.event.workflow_run.id }}"
+        else
+          TAG_VERSION="dev_${{ github.run_id }}"
+        fi
+        echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_ENV
+        echo "IMAGE=marcoscianci/gitops:$TAG_VERSION" >> $GITHUB_ENV
+      
+    - name: Install kustomize
+      shell: bash
+      run: |
+        curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/kustomize_v5.4.2_linux_amd64.tar.gz" \
+        | tar xz -C /usr/local/bin
+        kustomize version
+
+    - name: Kustomize set image & apply
+      shell: bash
+      env:
+        ENV: ${{ inputs.ENV }}
+        OVERLAY_DIR: ${{ inputs.OVERLAY_DIR }}
+        GIT_PAT: ${{ inputs.GIT_PAT }}
+      run: |
+        set -euo pipefail
+        test -d "$OVERLAY_DIR/${ENV}" || { echo "Overlay não encontrado: $OVERLAY_DIR/${ENV}"; exit 1; }
+
+        # seta a imagem no overlay (edita kustomization.yaml)
+        pushd "$OVERLAY_DIR/${ENV}" >/dev/null
+          kustomize edit set image marcoscianci/gitops="${IMAGE}"
+          echo "Kustomize images atualizadas para ${IMAGE}"
+        popd >/dev/null
+
+        # build + apply
+        kustomize build "$OVERLAY_DIR/${ENV}"  | grep -E 'image: .*/gitops:' | head -n 5 || true
+
+        git config user.name "github-action"
+        git config user.email "action@github.com"
+        git add "${OVERLAY_DIR}/${ENV}/kustomization.yaml"
+        if git diff --cached --quiet;then
+          echo "Nada para commitar(imagem ja estava em ${IMAGE})."
+          exit 0
+        fi
+        git commit -m "chore(cd): bump image to ${IMAGE}"
+        REMOTE_URL="$(git remote get-url origin)"
+        AUTH_URL="${REMOTE_URL/https:\/\/github.com/https:\/\/x-access-token:${GIT_PAT}@github.com}"
+        git remote set-url origin "${AUTH_URL}"
+        git push 
+  
