@@ -94,7 +94,7 @@ runs:
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
         ENV: ${{ inputs.ENV }}
-      run: envsubst < kubectl apply -f "$ARGOCD_PATH/project.yaml"
+      run: envsubst < "$ARGOCD_PATH/project.yaml" | kubectl apply -f - 
 
     - name: Apply Repository
       shell: bash
