@@ -92,13 +92,15 @@ runs:
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
-      run: kubectl apply -f "$ARGOCD_PATH/project.yaml"
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < kubectl apply -f "$ARGOCD_PATH/project.yaml"
 
     - name: Apply Repository
       shell: bash
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
         GIT_PAT: ${{ inputs.GIT_PAT }}
+        ENV: ${{ inputs.ENV }}
       run: envsubst < "$ARGOCD_PATH/repository.yaml" | kubectl apply -f -
 
     - name: Apply Applications (App of Apps ou individual)
@@ -108,54 +110,3 @@ runs:
         ENV: ${{ inputs.ENV }}
       run: envsubst < "$ARGOCD_PATH/application.yaml" | kubectl apply -f -
     
-    - name: Resolve IMAGE TAG
-      shell: bash
-      run: |
-        # Se CD foi disparado por workflow_run do CI, use o run_id do CI
-        if [ -n "${{ github.event.workflow_run.id || '' }}" ]; then
-          TAG_VERSION="dev_${{ github.event.workflow_run.id }}"
-        else
-          TAG_VERSION="dev_${{ github.run_id }}"
-        fi
-        echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_ENV
-        echo "IMAGE=marcoscianci/gitops:$TAG_VERSION" >> $GITHUB_ENV
-      
-    - name: Install kustomize
-      shell: bash
-      run: |
-        curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/kustomize_v5.4.2_linux_amd64.tar.gz" \
-        | tar xz -C /usr/local/bin
-        kustomize version
-
-    - name: Kustomize set image & apply
-      shell: bash
-      env:
-        ENV: ${{ inputs.ENV }}
-        OVERLAY_DIR: ${{ inputs.OVERLAY_DIR }}
-        GIT_PAT: ${{ inputs.GIT_PAT }}
-      run: |
-        set -euo pipefail
-        test -d "$OVERLAY_DIR/${ENV}" || { echo "Overlay não encontrado: $OVERLAY_DIR/${ENV}"; exit 1; }
-
-        # seta a imagem no overlay (edita kustomization.yaml)
-        pushd "$OVERLAY_DIR/${ENV}" >/dev/null
-          kustomize edit set image marcoscianci/gitops="${IMAGE}"
-          echo "Kustomize images atualizadas para ${IMAGE}"
-        popd >/dev/null
-
-        # build + apply
-        kustomize build "$OVERLAY_DIR/${ENV}"  | grep -E 'image: .*/gitops:' | head -n 5 || true
-
-        git config user.name "github-action"
-        git config user.email "action@github.com"
-        git add "${OVERLAY_DIR}/${ENV}/kustomization.yaml"
-        if git diff --cached --quiet;then
-          echo "Nada para commitar(imagem ja estava em ${IMAGE})."
-          exit 0
-        fi
-        git commit -m "chore(cd): bump image to ${IMAGE}"
-        REMOTE_URL="$(git remote get-url origin)"
-        AUTH_URL="${REMOTE_URL/https:\/\/github.com/https:\/\/x-access-token:${GIT_PAT}@github.com}"
-        git remote set-url origin "${AUTH_URL}"
-        git push 
-  
