@@ -23,6 +23,9 @@ inputs:
   GIT_PAT:
     description: 'GitHub Personal Access Token (with repo scope)'
     required: true
+  GIT_USER:
+    description: 'Github User'
+    required: true
   ENV:
     description: 'Environment (e.g. dev, hom, prod)'
     required: false
@@ -98,6 +101,7 @@ runs:
       env:
         ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
         GIT_PAT: ${{ inputs.GIT_PAT }}
+        GIT_USER: ${{ inputs.GIT_USER }}
         ENV: ${{ inputs.ENV }}
       run: envsubst < "$ARGOCD_PATH/repository.yaml" | kubectl apply -f -
 
