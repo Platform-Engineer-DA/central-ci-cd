@@ -1,0 +1,58 @@
+name: Deploy Argo CD objects to Minikube Local
+description: Deploy Argo CD objects to Minikube cluster using kubectl
+
+inputs:
+  GIT_PAT:
+    description: 'GitHub Personal Access Token (with repo scope)'
+    required: true
+  GIT_USER:
+    description: 'Github User'
+    required: true
+  ENV:
+    description: 'Environment (e.g. dev, hom, prod)'
+    required: false
+  ARGOCD_PATH:
+    description: 'Path to Argo CD manifests'
+    required: false
+  OVERLAY_DIR:
+    description: 'Path to Kustomize overlay directory'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Print Context
+      shell: bash
+      run: |
+        echo "KUBECONFIG=$KUBECONFIG"
+        kubectl version --short
+        helm version  
+        
+    - name: Ensure 
+      shell: bash
+      run: |
+        kubectl get ns argocd || kubectl create ns argocd 
+    
+    - name: Apply App Project
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < "$ARGOCD_PATH/project.yaml" | kubectl apply -f - 
+
+    - name: Apply Repository
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+        GIT_PAT: ${{ inputs.GIT_PAT }}
+        GIT_USER: ${{ inputs.GIT_USER }}
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < "$ARGOCD_PATH/repository.yaml" | kubectl apply -f -
+
+    - name: Apply Applications (App of Apps ou individual)
+      shell: bash
+      env:
+        ARGOCD_PATH: ${{ inputs.ARGOCD_PATH }}
+        ENV: ${{ inputs.ENV }}
+      run: envsubst < "$ARGOCD_PATH/application.yaml" | kubectl apply -f -
+    
