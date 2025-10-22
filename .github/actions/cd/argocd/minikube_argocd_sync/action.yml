@@ -25,7 +25,7 @@ runs:
       shell: bash
       run: |
         echo "KUBECONFIG=$KUBECONFIG"
-        kubectl version --short
+        kubectl version
         helm version  
         
     - name: Ensure 
