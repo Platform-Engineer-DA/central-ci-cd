@@ -1,0 +1,104 @@
+name: Validate Actions
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint GitHub Workflows (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run actionlint
+        uses: reviewdog/action-actionlint@v1
+        with:
+          reporter: github-pr-check
+          fail_on_error: true
+
+  metadata-lint:
+    name: Lint Composite Action Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate action.yml metadata
+        uses: xt0rted/action-metadata-lint@v2
+        with:
+          # Lint all composite actions under .github/actions/**/action.yml
+          files: |
+            .github/actions/**/action.yml
+
+  yamllint:
+    name: Lint YAML files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          format: github
+          strict: true
+          file_or_dir: |
+            .
+          # You can add a custom config at .yamllint.yaml to fine-tune rules
+
+  shellcheck:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@v2
+        with:
+          scandir: .
+        env:
+          SHELLCHECK_OPTS: -S warning
+
+  hadolint:
+    name: Lint Dockerfiles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: |
+            **/Dockerfile
+        # Add a .hadolint.yaml file to tweak rules as needed
+
+  # Group result: ensure all linters pass
+  summary:
+    name: All validations passed
+    runs-on: ubuntu-latest
+    needs: [actionlint, metadata-lint, yamllint, shellcheck, hadolint]
+    if: ${{ always() }}
+    steps:
+      - name: Report status
+        run: |
+          if [ "${{ needs.actionlint.result }}" != "success" ] || \
+             [ "${{ needs.metadata-lint.result }}" != "success" ] || \
+             [ "${{ needs.yamllint.result }}" != "success" ] || \
+             [ "${{ needs.shellcheck.result }}" != "success" ] || \
+             [ "${{ needs.hadolint.result }}" != "success" ]; then
+            echo "One or more validation jobs failed" >&2
+            exit 1
+          fi
+          echo "All validation jobs completed successfully."
+
+
