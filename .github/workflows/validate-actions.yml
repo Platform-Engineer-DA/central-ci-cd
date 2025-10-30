@@ -78,27 +78,10 @@ jobs:
       - name: Run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: |
-            **/Dockerfile
+          path: .
+          recursive: true
         # Add a .hadolint.yaml file to tweak rules as needed
 
-  # Group result: ensure all linters pass
-  summary:
-    name: All validations passed
-    runs-on: ubuntu-latest
-    needs: [actionlint, metadata-lint, yamllint, shellcheck, hadolint]
-    if: ${{ always() }}
-    steps:
-      - name: Report status
-        run: |
-          if [ "${{ needs.actionlint.result }}" != "success" ] || \
-             [ "${{ needs.metadata-lint.result }}" != "success" ] || \
-             [ "${{ needs.yamllint.result }}" != "success" ] || \
-             [ "${{ needs.shellcheck.result }}" != "success" ] || \
-             [ "${{ needs.hadolint.result }}" != "success" ]; then
-            echo "One or more validation jobs failed" >&2
-            exit 1
-          fi
-          echo "All validation jobs completed successfully."
+  # Workflow will fail if any individual job fails; no summary job required
 
 
